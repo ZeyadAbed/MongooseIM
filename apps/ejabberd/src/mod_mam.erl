@@ -135,8 +135,6 @@
 -type iterator_fun() :: fun(() -> {'ok', {_, _}}).
 -type rewriter_fun() :: fun((JID :: ejabberd:literal_jid())
                             -> ejabberd:literal_jid()).
--type restore_option() :: {rewrite_jids, rewriter_fun() | [{binary(), binary()}]}
-                        | new_message_ids.
 
 -type preference() :: {DefaultMode :: archive_behaviour(),
                        AlwaysJIDs :: [ejabberd:literal_jid()],
@@ -152,6 +150,9 @@
               lookup_result/0,
               message_id/0
              ]).
+
+-callback is_complete_message(Module :: atom(), Dir :: incoming | outgoing, Packet :: term()) ->
+    boolean().
 
 %% ----------------------------------------------------------------------
 %% Constants
@@ -396,13 +397,13 @@ handle_mam_iq(Action, From, To, IQ) ->
 
 -spec iq_action(ejabberd:iq()) -> action().
 iq_action(IQ = #iq{xmlns = ?NS_MAM}) ->
-    iq_action_02(IQ);
+    iq_action02(IQ);
 iq_action(IQ = #iq{xmlns = ?NS_MAM_03}) ->
-    iq_action_03(IQ);
+    iq_action03(IQ);
 iq_action(IQ = #iq{xmlns = ?NS_MAM_04}) ->
-    iq_action_03(IQ).
+    iq_action03(IQ).
 
-iq_action_02(#iq{type = Action, sub_el = SubEl = #xmlel{name = Category}}) ->
+iq_action02(#iq{type = Action, sub_el = SubEl = #xmlel{name = Category}}) ->
     case {Action, Category} of
         {set, <<"prefs">>} -> mam_set_prefs;
         {get, <<"prefs">>} -> mam_get_prefs;
@@ -414,7 +415,7 @@ iq_action_02(#iq{type = Action, sub_el = SubEl = #xmlel{name = Category}}) ->
             end
     end.
 
-iq_action_03(#iq{type = Action, sub_el = #xmlel{name = Category}}) ->
+iq_action03(#iq{type = Action, sub_el = #xmlel{name = Category}}) ->
     case {Action, Category} of
         {set, <<"prefs">>} -> mam_set_prefs;
         {get, <<"prefs">>} -> mam_get_prefs;
@@ -470,7 +471,7 @@ handle_lookup_messages(
   From = #jid{},
   ArcJID = #jid{},
   IQ = #iq{xmlns = MamNs, sub_el = QueryEl}) ->
-    Now = mod_mam_utils:now_to_microseconds(now()),
+    Now = time:monotonic_time(microseconds),
     Host = server_host(ArcJID),
     ArcID = archive_id_int(Host, ArcJID),
     QueryID = xml:get_tag_attr_s(<<"queryid">>, QueryEl),
@@ -524,7 +525,7 @@ handle_set_message_form(
   From = #jid{},
   ArcJID = #jid{},
   IQ = #iq{xmlns = MamNs, sub_el = QueryEl}) ->
-    Now = mod_mam_utils:now_to_microseconds(now()),
+    Now = time:monotonic_time(microseconds),
     Host = server_host(ArcJID),
     ArcID = archive_id_int(Host, ArcJID),
     QueryID = xml:get_tag_attr_s(<<"queryid">>, QueryEl),
@@ -607,7 +608,7 @@ handle_get_message_form(_From = #jid{}, _ArcJID = #jid{}, IQ = #iq{}) ->
                                             ejabberd:iq() | {error, term(), ejabberd:iq()}.
 handle_purge_multiple_messages(ArcJID = #jid{},
                                IQ = #iq{sub_el = PurgeEl}) ->
-    Now = mod_mam_utils:now_to_microseconds(now()),
+    Now = time:monotonic_time(microseconds),
     Host = server_host(ArcJID),
     ArcID = archive_id_int(Host, ArcJID),
     %% Filtering by date.
@@ -627,7 +628,7 @@ handle_purge_multiple_messages(ArcJID = #jid{},
                                          ejabberd:iq() | {error, term(), ejabberd:iq()}.
 handle_purge_single_message(ArcJID = #jid{},
                             IQ = #iq{sub_el = PurgeEl}) ->
-    Now = mod_mam_utils:now_to_microseconds(now()),
+    Now = time:monotonic_time(microseconds),
     Host = server_host(ArcJID),
     ArcID = archive_id_int(Host, ArcJID),
     BExtMessID = xml:get_tag_attr_s(<<"id">>, PurgeEl),
@@ -657,19 +658,25 @@ handle_package(Dir, ReturnMessID,
                SrcJID = #jid{}, Packet) ->
     case is_complete_message(?MODULE, Dir, Packet) of
         true ->
-            Host = server_host(LocJID),
-            ArcID = archive_id_int(Host, LocJID),
-            case is_interesting(Host, LocJID, RemJID, ArcID) of
-                true ->
-                    MessID = generate_message_id(),
-                    Result = archive_message(Host, MessID, ArcID,
-                                             LocJID, RemJID, SrcJID, Dir, Packet),
-                    case {ReturnMessID, Result} of
-                        {true, ok} -> mess_id_to_external_binary(MessID);
-                        _ -> undefined
-                    end;
-                false ->
-                    undefined
+            handle_complete_message(ReturnMessID, LocJID, RemJID, SrcJID, Dir, Packet);
+        false ->
+            undefined
+    end.
+
+-spec handle_complete_message(Dir :: incoming | outgoing, ReturnMessID :: boolean(),
+                     LocJID :: ejabberd:jid(), RemJID :: ejabberd:jid(), SrcJID :: ejabberd:jid(),
+                     Packet :: jlib:xmlel()) -> MaybeMessID :: binary() | undefined.
+handle_complete_message(Dir, ReturnMessID, LocJID, RemJID, SrcJID, Packet) ->
+    Host = server_host(LocJID),
+    ArcID = archive_id_int(Host, LocJID),
+    case is_interesting(Host, LocJID, RemJID, ArcID) of
+        true ->
+            MessID = generate_message_id(),
+            Result = archive_message(Host, MessID, ArcID,
+                                     LocJID, RemJID, SrcJID, Dir, Packet),
+            case {ReturnMessID, Result} of
+                {true, ok} -> mess_id_to_external_binary(MessID);
+                _ -> undefined
             end;
         false ->
             undefined
@@ -795,7 +802,8 @@ purge_single_message(Host, MessID, ArcID, ArcJID, Now) ->
 
 -spec purge_multiple_messages(Host :: ejabberd:server(), ArcID :: archive_id(),
                               ArcJID :: ejabberd:jid(), Borders :: borders() | undefined,
-                              Start :: unix_timestamp() | undefined, End :: unix_timestamp() | undefined,
+                              Start :: unix_timestamp() | undefined,
+                              End :: unix_timestamp() | undefined,
                               Now :: unix_timestamp(), WithJID :: ejabberd:jid() | undefined) ->
                                      ok | {error, Reason :: term()}.
 purge_multiple_messages(Host, ArcID, ArcJID, Borders, Start, End, Now, WithJID) ->
@@ -935,9 +943,9 @@ return_purge_success(IQ) ->
 -spec return_purge_not_found_error_iq(ejabberd:iq()) -> ejabberd:iq().
 return_purge_not_found_error_iq(IQ) ->
     %% Message not found.
-    ErrorEl = jlib:stanza_errort(<<"">>, <<"cancel">>, <<"item-not-found">>,
-                                 <<"en">>,
-                                 <<"The provided UID did not match any message stored in archive.">>),
+    ErrorEl = jlib:stanza_errort(<<"">>, <<"cancel">>, <<"item-not-found">>, <<"en">>,
+                                 <<"The provided UID did not match any message stored in archive.">>
+    ),
     IQ#iq{type = error, sub_el = [ErrorEl]}.
 
 
@@ -957,8 +965,9 @@ return_error_iq(IQ, timeout) ->
 return_error_iq(IQ, not_implemented) ->
     {error, not_implemented, IQ#iq{type = error, sub_el = [?ERR_FEATURE_NOT_IMPLEMENTED]}};
 return_error_iq(IQ, missing_with_jid) ->
-    {error, bad_request, IQ#iq{type = error, sub_el = [?ERRT_BAD_REQUEST(<<"en">>,
-                                                                         <<"Limited set of queries allowed in the conversation mode. Missing with_jid filter">>)]}};
+    {error, bad_request, IQ#iq{type = error, sub_el = [
+        ?ERRT_BAD_REQUEST(<<"en">>, <<"Limited set of queries allowed in the conversation mode.",
+                                      "Missing with_jid filter">>)]}};
 return_error_iq(IQ, Reason) ->
     {error, Reason, IQ#iq{type = error, sub_el = [?ERR_INTERNAL_SERVER_ERROR]}}.
 
@@ -1002,7 +1011,8 @@ params_helper(Params) ->
                                       "max_result_limit() -> ~p.~n"
                                       "params() -> ~p.~n",
                                       [proplists:get_bool(add_archived_element, Params),
-                                       proplists:get_value(is_complete_message, Params, mod_mam_utils),
+                                       proplists:get_value(is_complete_message, Params,
+                                                           mod_mam_utils),
                                        proplists:get_value(default_result_limit, Params, 50),
                                        proplists:get_value(max_result_limit, Params, 50),
                                        Params
