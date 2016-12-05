@@ -471,7 +471,7 @@ handle_lookup_messages(
   From = #jid{},
   ArcJID = #jid{},
   IQ = #iq{xmlns = MamNs, sub_el = QueryEl}) ->
-    Now = time:monotonic_time(microseconds),
+    Now = time:monotonic_time(microsecond),
     Host = server_host(ArcJID),
     ArcID = archive_id_int(Host, ArcJID),
     QueryID = xml:get_tag_attr_s(<<"queryid">>, QueryEl),
@@ -525,7 +525,7 @@ handle_set_message_form(
   From = #jid{},
   ArcJID = #jid{},
   IQ = #iq{xmlns = MamNs, sub_el = QueryEl}) ->
-    Now = time:monotonic_time(microseconds),
+    Now = time:monotonic_time(microsecond),
     Host = server_host(ArcJID),
     ArcID = archive_id_int(Host, ArcJID),
     QueryID = xml:get_tag_attr_s(<<"queryid">>, QueryEl),
@@ -608,7 +608,7 @@ handle_get_message_form(_From = #jid{}, _ArcJID = #jid{}, IQ = #iq{}) ->
                                             ejabberd:iq() | {error, term(), ejabberd:iq()}.
 handle_purge_multiple_messages(ArcJID = #jid{},
                                IQ = #iq{sub_el = PurgeEl}) ->
-    Now = time:monotonic_time(microseconds),
+    Now = time:monotonic_time(microsecond),
     Host = server_host(ArcJID),
     ArcID = archive_id_int(Host, ArcJID),
     %% Filtering by date.
@@ -628,7 +628,7 @@ handle_purge_multiple_messages(ArcJID = #jid{},
                                          ejabberd:iq() | {error, term(), ejabberd:iq()}.
 handle_purge_single_message(ArcJID = #jid{},
                             IQ = #iq{sub_el = PurgeEl}) ->
-    Now = time:monotonic_time(microseconds),
+    Now = time:monotonic_time(microsecond),
     Host = server_host(ArcJID),
     ArcID = archive_id_int(Host, ArcJID),
     BExtMessID = xml:get_tag_attr_s(<<"id">>, PurgeEl),
