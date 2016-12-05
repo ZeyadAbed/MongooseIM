@@ -658,7 +658,7 @@ handle_package(Dir, ReturnMessID,
                SrcJID = #jid{}, Packet) ->
     case is_complete_message(?MODULE, Dir, Packet) of
         true ->
-            handle_complete_message(ReturnMessID, LocJID, RemJID, SrcJID, Dir, Packet);
+            handle_complete_message(Dir, ReturnMessID, LocJID, RemJID, SrcJID, Packet);
         false ->
             undefined
     end.
