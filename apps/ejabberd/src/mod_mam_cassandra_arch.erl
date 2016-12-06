@@ -47,6 +47,9 @@
 -include_lib("ejabberd/include/jlib.hrl").
 -include_lib("exml/include/exml.hrl").
 
+-callback encode(binary()) -> binary().
+-callback decode(binary()) -> binary().
+
 -record(mam_ca_filter, {
           user_jid,
           with_jid,
@@ -752,7 +755,6 @@ bare_jid(undefined) -> undefined;
 bare_jid(JID) ->
     jid:to_binary(jid:to_bare(jid:to_lower(JID))).
 
-full_jid(undefined) -> undefined;
 full_jid(JID) ->
     jid:to_binary(jid:to_lower(JID)).
 
