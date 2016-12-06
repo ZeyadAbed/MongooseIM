@@ -426,8 +426,8 @@ replace_macros(Terms) ->
 split_terms_macros(Terms) ->
     lists:foldl(fun split_terms_macros_fold/2, {[], []}, Terms).
 
--spec split_terms_macros_fold(any(), AccIn) -> AccOut when
-    AccOut :: AccIn :: {[term()], [{Key :: any(), Value :: any()}]}.
+-spec split_terms_macros_fold(any(), Acc) -> Acc when
+    Acc :: {[term()], [{Key :: any(), Value :: any()}]}.
 split_terms_macros_fold(Term, {TOs, Ms}) ->
     case Term of
         {define_macro, Key, Value} ->
