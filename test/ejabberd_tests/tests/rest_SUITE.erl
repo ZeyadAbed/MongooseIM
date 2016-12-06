@@ -215,20 +215,20 @@ messages_can_be_paginated(Config) ->
         mam_helper:maybe_wait_for_backend(Config),
         % recent msgs with a limit
         M1 = get_messages(AliceJID, BobJID, 10),
-        6 = length(M1),
+        ?assertEqual(6, length(M1)),
         M2 = get_messages(AliceJID, BobJID, 3),
-        3 = length(M2),
+        ?assertEqual(3, length(M2)),
         % older messages - earlier then the previous midnight
         PriorTo = rest_helper:make_timestamp(-1, {0, 0, 1}) div 1000,
         M3 = get_messages(AliceJID, BobJID, PriorTo, 10),
-        4 = length(M3),
+        ?assertEqual(4, length(M3)),
         [Oldest|_] = decode_maplist(M3),
-        <<"A">> = maps:get(body, Oldest),
+        ?assertEqual(maps:get(body, Oldest), <<"A">>),
         % same with limit
         M4 = get_messages(AliceJID, BobJID, PriorTo, 2),
-        2 = length(M4),
+        ?assertEqual(2, length(M4)),
         [Oldest2|_] = decode_maplist(M4),
-        <<"B">> = maps:get(body, Oldest2),
+        ?assertEqual(maps:get(body, Oldest2), <<"B">>),
         ok
     end).
 
