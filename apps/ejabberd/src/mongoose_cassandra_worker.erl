@@ -104,10 +104,10 @@ cql_query_multi(Worker, UserJID, Module, Queries) ->
     cql_query_multi(Worker, UserJID, Module, Queries, []).
 
 cql_query_multi(Worker, UserJID, Module, [{QueryName, Params} | Queries], Results) ->
-    case cql_query(Worker, UserJID, Module, QueryName, Params) of
+    case catch cql_query(Worker, UserJID, Module, QueryName, Params) of
         {ok, Result} ->
             cql_query_multi(Worker, UserJID, Module, Queries, [Result | Results]);
-        {error, Reason} ->
+        Reason ->
             {error, [{reason, Reason}, {results, Results}]}
     end;
 cql_query_multi(_Worker, _UserJID, _Module, [], Results) ->
@@ -166,7 +166,7 @@ test_query(PoolName) ->
 test_query(PoolName, UserJID) ->
     Workers = mongoose_cassandra_sup:get_all_workers(PoolName),
     [{Worker, try cql_query(Worker, UserJID, ?MODULE, test_query, []) of
-                  [[_Now]] -> ok;
+                  {ok, [[_Now]]} -> ok;
                   Other -> {error, Other}
               catch Class:Reason -> {error, {Class, Reason}}
               end} || Worker <- Workers].

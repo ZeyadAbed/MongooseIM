@@ -199,7 +199,7 @@ remove_archive(_Host, _UserID, UserJID) ->
     ok.
 
 
--spec query_behaviour(ejabberd:server(), UserJID :: ejabberd:jid(), BUserJID :: string(),
+-spec query_behaviour(ejabberd:server(), UserJID :: ejabberd:jid(), BUserJID :: binary() | string(),
                       BRemJID :: binary() | string(), BRemBareJID :: binary() | string()) -> any().
 query_behaviour(_Host, UserJID, BUserJID, BRemJID, BRemBareJID) ->
     PoolName = pool_name(UserJID),

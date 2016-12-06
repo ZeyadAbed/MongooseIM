@@ -728,9 +728,9 @@ filter_to_cql() ->
       TotalCount :: non_neg_integer(),
       RSM :: rsm_in() | undefined,
       Offset :: non_neg_integer().
-calc_offset(_W, _RoomJID, _LS, _F, _PS, _TC, #rsm_in{direction = undefined, index = Index})
-  when is_integer(Index) ->
-    Index;
+% calc_offset(_W, _RoomJID, _LS, _F, _PS, _TC, #rsm_in{direction = undefined, index = Index})
+%   when is_integer(Index) ->
+%     Index;
 %% Requesting the Last Page in a Result Set
 calc_offset(_W, _RoomJID, _LS, _F, PS, TC, #rsm_in{direction = before, id = undefined}) ->
     max(0, TC - PS);
